@@ -8,10 +8,15 @@ the overall process was:
 2- from frequency table, extract barcode
 
 3- only keep rows (reads) for which a barcode could be extracted
+
 4- extract the associated gene cargo using anchors for each row in frequency table
+
 5- classify gene bsaed on specific sequence of 4 nt (with 6 nt that are specific to the set)
+
 6- further collapse frequency table for rows that have matching barode / barcode length / classification
+
 7- subset
+
 
 THEN
 match gene to correct sequence
