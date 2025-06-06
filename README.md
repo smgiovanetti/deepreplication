@@ -1,6 +1,7 @@
-ICR plasmids were iniitally sequenced via pac bio long read sequencing
-to extract the barcode and check that the sequence of the associated cargo is correct, the scripts found in pacbio_analysis were used
-scripts are ordered numerically
+ICR plasmids were iniitally sequenced via pac bio long read sequencing.
+to extract the barcode and check that the sequence of the associated cargo is correct, the scripts found in pacbio_analysis were used.
+scripts are ordered numerically.
+
 the overall process was:
 
 1- collapse all reads to a frequency table (count all identical reads)
@@ -20,3 +21,7 @@ the overall process was:
 
 THEN
 match gene to correct sequence
+
+8- match gene for perfect sequence, keep barcodes that are correct and incorrect (in separate csv)
+
+9- collapse frequency table a final time for barcodes that meet requirements and are paired with cargo with correct sequence
