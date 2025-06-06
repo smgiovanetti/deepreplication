@@ -1,6 +1,6 @@
 import pandas as pd
 
-df = pd.read_csv('2_frequency.csv')
+df = pd.read_csv('4_frequency.csv')
 
 classifications = {
     'GATCGTATTG': ('rad1neg', 'CAATACGATC', 'ACCGGTGCTT'),
@@ -27,6 +27,6 @@ def extract_barcode(row):
 df['barcode'], df['classification'] = zip(*df.apply(extract_barcode, axis=1))
 
 matched_df = df[df['classification'].notna()]
-matched_df[['count', 'barcode', 'classification']].to_csv('2_frequency_with_barcodes.csv', index=False)
+matched_df[['count', 'barcode', 'classification']].to_csv('4_frequency_with_barcodes.csv', index=False)
 unmatched_df = df[df['classification'].isna()]
-unmatched_df[['read', 'count']].to_csv('2_unmatched_reads.csv', index=False)
+unmatched_df[['read', 'count']].to_csv('4_unmatched_reads.csv', index=False)
