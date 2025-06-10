@@ -42,67 +42,173 @@ correct <- df_white %>%
     reverse_complement = paste(reverse_complement, collapse = ", ")
   )
 
+list_agg <- bind_rows(correct, incorrect)
+list_agg_aggregated <- list_agg %>%
+  group_by(reverse_complement) %>%
+  summarize(
+    classification_y = paste(unique(classification_y), collapse = ", "),
+    replicate = paste(unique(replicate), collapse = ", "),
+    type = type[1]  # Retain the 'type' column
+  ) %>%
+  mutate(
+    classification_y = ifelse(grepl("incorrect", classification_y), "incorrect", classification_y)
+  )
+
 # classify as correct or incorrect (inefficient)
-incorrect_BC2 <- df %>%
-  filter(BC2 %in% incorrect$reverse_complement)
-incorrect_BC2 <- incorrect_BC2 %>%
-  left_join(incorrect %>% select(reverse_complement, type), by = c("BC2" = "reverse_complement"))
+#filter based on BC1
+filtered_df_BC1 <- df %>%
+  filter(BC1 %in% list_agg_aggregated$reverse_complement)
 
-collapsed_BC2_incorrect <- incorrect_BC2 %>%
-  group_by(HC1, BC1, HC2, BC2, HC3, BC3, classification, time, mms, type) %>%
-  summarise(frequency = sum(frequency)) %>%
-  ungroup()
+filtered_df_BC1 <- filtered_df_BC1 %>%
+  left_join(
+    list_agg_aggregated %>% 
+      select(reverse_complement, classification_y, replicate, type),
+    by = c("BC1" = "reverse_complement")
+  )
 
-time0_BC2_incorrect <- collapsed_BC2_incorrect %>%
-  filter(time == 0) %>%
-  select(HC1, BC1, HC2, BC2, HC3, BC3, classification, frequency, type)
+filtered_df_BC1 <- filtered_df_BC1 %>%
+  rename_with(
+    ~ if_else(. == "classification_y", "BC1_classification", 
+              if_else(. == "replicate", "BC1_replicate", 
+                      if_else(. == "type", "BC1_type", .))),
+    everything()
+  )
 
-correct_BC2 <-df %>%
-  filter(BC2 %in% whitelist_agg$reverse_complement)
+#filter based on BC2
+filtered_df_BC1_BC2 <- filtered_df_BC1 %>%
+  filter(BC2 %in% list_agg_aggregated$reverse_complement)
 
-collapsed_BC2_correct <- correct_BC2 %>%
+filtered_df_BC1_BC2 <- filtered_df_BC1_BC2 %>%
+  left_join(
+    list_agg_aggregated %>% 
+      select(reverse_complement, classification_y, replicate, type),
+    by = c("BC2" = "reverse_complement")
+  )
+
+filtered_df_BC1_BC2 <- filtered_df_BC1_BC2 %>%
+  rename_with(
+    ~ if_else(. == "classification_y", "BC2_classification", 
+              if_else(. == "replicate", "BC2_replicate", 
+                      if_else(. == "type", "BC2_type", .))),
+    everything()
+  )
+
+
+#filter based on BC3
+filtered_df_BC1_BC2_BC3 <- filtered_df_BC1_BC2 %>%
+  filter(BC3 %in% list_agg_aggregated$reverse_complement)
+
+filtered_df_BC1_BC2_BC3 <- filtered_df_BC1_BC2_BC3 %>%
+  left_join(
+    list_agg_aggregated %>% 
+      select(reverse_complement, classification_y, replicate, type),
+    by = c("BC3" = "reverse_complement")
+  )
+
+filtered_df_BC1_BC2_BC3 <- filtered_df_BC1_BC2_BC3 %>%
+  rename_with(
+    ~ if_else(. == "classification_y", "BC3_classification", 
+              if_else(. == "replicate", "BC3_replicate", 
+                      if_else(. == "type", "BC3_type", .))),
+    everything()
+  )
+
+collapsed_df <- filtered_df_BC1_BC2_BC3 %>%
   group_by(HC1, BC1, HC2, BC2, HC3, BC3, classification, time, mms) %>%
-  summarise(frequency = sum(frequency)) %>%
+  summarise(
+    frequency = sum(frequency),
+    BC1_classification = unique(BC1_classification)[1],
+    BC1_replicate = paste(BC1_replicate, collapse = ", "),
+    BC1_type = unique(BC1_type)[1],  # Retaining BC1_type
+    BC2_classification = unique(BC2_classification)[1],
+    BC2_replicate = paste(BC2_replicate, collapse = ", "),
+    BC2_type = unique(BC2_type)[1],  # Retaining BC2_type
+    BC3_classification = unique(BC3_classification)[1],
+    BC3_replicate = paste(BC3_replicate, collapse = ", "),
+    BC3_type = unique(BC3_type)[1]   # Retaining BC3_type
+  ) %>%
+  ungroup() %>%
+  mutate(
+    BC1_classification = sub(",.*", "", BC1_classification),
+    BC2_classification = sub(",.*", "", BC2_classification),
+    BC3_classification = sub(",.*", "", BC3_classification)
+  )
+
+collapsed_df <- collapsed_df %>%
+  rowwise() %>%
+  mutate(
+    BC1_replicate = if (all(grepl("\\b1\\b", BC1_replicate)) && !any(grepl("\\b2\\b", BC1_replicate))) {
+      "1"
+    } else if (all(grepl("\\b2\\b", BC1_replicate)) && !any(grepl("\\b1\\b", BC1_replicate))) {
+      "2"
+    } else if (any(grepl("\\b1\\b", BC1_replicate)) && any(grepl("\\b2\\b", BC1_replicate))) {
+      "1,2"
+    } else {
+      "other"
+    },
+    BC2_replicate = if (all(grepl("\\b1\\b", BC2_replicate)) && !any(grepl("\\b2\\b", BC2_replicate))) {
+      "1"
+    } else if (all(grepl("\\b2\\b", BC2_replicate)) && !any(grepl("\\b1\\b", BC2_replicate))) {
+      "2"
+    } else if (any(grepl("\\b1\\b", BC2_replicate)) && any(grepl("\\b2\\b", BC2_replicate))) {
+      "1,2"
+    } else {
+      "other"
+    },
+    BC3_replicate = if (all(grepl("\\b1\\b", BC3_replicate)) && !any(grepl("\\b2\\b", BC3_replicate))) {
+      "1"
+    } else if (all(grepl("\\b2\\b", BC3_replicate)) && !any(grepl("\\b1\\b", BC3_replicate))) {
+      "2"
+    } else if (any(grepl("\\b1\\b", BC3_replicate)) && any(grepl("\\b2\\b", BC3_replicate))) {
+      "1,2"
+    } else {
+      "other"
+    }
+  ) %>%
   ungroup()
 
-collapsed_BC2_correct_rep <- left_join(collapsed_BC2_correct, whitelist_agg, by = c("BC2" = "reverse_complement"))
-collapsed_BC2_correct_rep <- collapsed_BC2_correct_rep %>%
-  select(-barcode, -classification_x, -type, -whitelist, -classification_y)
+#looking at just time=0 barcodes
+time0_barcodes <- collapsed_df %>%
+  filter(time == 0, BC3_replicate == 2) %>%
+  select(HC1, BC1, HC2, BC2, HC3, BC3, classification, frequency, BC1_classification, BC1_replicate, BC1_type, BC2_classification, BC2_replicate, BC2_type, BC3_classification, BC3_replicate, BC3_type)
 
-time0_BC2_correct <- collapsed_BC2_correct_rep %>%
-  filter(time == 0, replicate == 2) %>%
-  select(HC1, BC1, HC2, BC2, HC3, BC3, classification, frequency)
-time0_BC2_correct <- time0_BC2_correct %>%
-  mutate(type = "correct")
+total_classification_freq <- time0_barcodes %>%
+  group_by(classification) %>%
+  summarise(total_freq = sum(frequency))
 
-BC2_summary_correct <- time0_BC2_correct %>%
-  distinct(HC2, BC2, type)
-BC2_summary_correct <- BC2_summary_correct %>%
-  group_by(HC2, type) %>%
-  summarize(unique_row_count = n(), .groups = 'drop')
+percent_BC2 <- time0_barcodes %>%
+  group_by(classification, BC2_classification) %>%
+  summarise(frequency = sum(frequency)) %>%
+  left_join(total_classification_freq, by = "classification") %>%
+  mutate(percentage = (frequency / total_freq) * 100)
 
-BC2_summary_incorrect <- time0_BC2_incorrect %>%
-  distinct(HC2, BC2, type)
-BC2_summary_incorrect <- BC2_summary_incorrect %>%
-  group_by(HC2, type) %>%
-  summarize(unique_row_count = n(), .groups = 'drop')
+freq_BC2 <- percent_BC2 %>%
+  group_by(BC2_classification) %>%
+  summarise(global_frequency = sum(frequency)) %>%
+  arrange(global_frequency)
 
-BC2_summary_combined <- bind_rows(BC2_summary_correct, BC2_summary_incorrect)
-BC2_summary_combined$type <- factor(BC2_summary_combined$type, levels = c("misassociation", "primer", "snp", "correct"))
+percent_BC2 <- percent_BC2 %>%
+  mutate(BC1_classification = factor(BC2_classification, levels = freq_BC2$BC2_classification))
 
-HC2_mapping <- c("ATAC" = "rad10", "ACAG" = "rad10neg", "AATG" = "ercc1")
+color_palette_BC2 <- c(
+  "ercc1" = "#94D1BF",
+  "ercc4" = "#1f77b4",
+  "incorrect" = "#CD4071FF",
+  "rad1" = "#1f77b4",
+  "rad1neg" = "#1f77b4",
+  "rad10" = "#94D1BF",
+  "rad10neg" = "#94D1BF",
+  "rad14" = "#1f77b4",
+  "rad14neg" = "#1f77b4",
+  "xpa" = "#1f77b4"
+)
 
-BC2_summary_combined <- BC2_summary_combined %>%
-  mutate(HC2 = case_when(
-    HC2 %in% names(HC2_mapping) ~ HC2_mapping[HC2],
-    TRUE ~ HC2  
-  ))
-colors <- c("correct" ="#94D1BF", "snp" = "#9F2F7FFF", "primer"="#CD4071FF", "misassociation" = "#F1605DFF")
-
-ggplot(BC2_summary_combined, aes(x = HC2, y = unique_row_count, fill = type)) +
-  geom_bar(stat = "identity") +
-  labs(x = "HC2", y = "unique bc2", title = "barcode distribution b2 r2") +
-  scale_fill_manual(values = colors) + 
+ggplot(percent_BC2, aes(x = classification, y = percentage, fill = BC2_classification)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(title = "BC2_classification for each genotype (rep2)",
+       x = "genotype",
+       y = "percent",
+       fill = "BC2 classification") +
   theme_minimal() +
-  ylim(0, 2200) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_fill_manual(values = color_palette_BC2)
