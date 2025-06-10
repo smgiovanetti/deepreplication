@@ -168,47 +168,39 @@ collapsed_df <- collapsed_df %>%
   ungroup()
 
 #looking at just time=0 barcodes
-time0_barcodes <- collapsed_df %>%
-  filter(time == 0, BC3_replicate == 2) %>%
-  select(HC1, BC1, HC2, BC2, HC3, BC3, classification, frequency, BC1_classification, BC1_replicate, BC1_type, BC2_classification, BC2_replicate, BC2_type, BC3_classification, BC3_replicate, BC3_type)
+time0_barcodes <- time0_barcodes %>%
+  mutate(
+    num_incorrect = rowSums(across(starts_with("BC"), ~ . == "incorrect"))
+  )
 
-total_classification_freq <- time0_barcodes %>%
+freq_by_incorrect <- time0_barcodes %>%
+  group_by(classification, num_incorrect) %>%
+  summarise(total_freq = sum(frequency), .groups = "drop")
+
+total_freq_by_class <- time0_barcodes %>%
   group_by(classification) %>%
-  summarise(total_freq = sum(frequency))
+  summarise(total_freq = sum(frequency), .groups = "drop")
 
-percent_BC2 <- time0_barcodes %>%
-  group_by(classification, BC2_classification) %>%
-  summarise(frequency = sum(frequency)) %>%
-  left_join(total_classification_freq, by = "classification") %>%
-  mutate(percentage = (frequency / total_freq) * 100)
+percent_by_incorrect <- freq_by_incorrect %>%
+  left_join(total_freq_by_class, by = "classification") %>%
+  mutate(percentage = (total_freq.x / total_freq.y) * 100) %>%
+  select(classification, num_incorrect, percentage)
 
-freq_BC2 <- percent_BC2 %>%
-  group_by(BC2_classification) %>%
-  summarise(global_frequency = sum(frequency)) %>%
-  arrange(global_frequency)
+percent_by_incorrect <- percent_by_incorrect %>%
+  mutate(
+    num_incorrect = factor(num_incorrect, levels = c("0", "1", "2"))
+  )
 
-percent_BC2 <- percent_BC2 %>%
-  mutate(BC1_classification = factor(BC2_classification, levels = freq_BC2$BC2_classification))
+write.csv(percent_by_incorrect, file ="correctincorrectgraph.csv", row.names = FALSE)
 
-color_palette_BC2 <- c(
-  "ercc1" = "#94D1BF",
-  "ercc4" = "#1f77b4",
-  "incorrect" = "#CD4071FF",
-  "rad1" = "#1f77b4",
-  "rad1neg" = "#1f77b4",
-  "rad10" = "#94D1BF",
-  "rad10neg" = "#94D1BF",
-  "rad14" = "#1f77b4",
-  "rad14neg" = "#1f77b4",
-  "xpa" = "#1f77b4"
+color_palette_incorrect <- c(
+  "2" = "#1f77b4",
+  "1" = "#CD4071FF",
+  "0" = "#94D1BF"
 )
-
-ggplot(percent_BC2, aes(x = classification, y = percentage, fill = BC2_classification)) +
+ggplot(percent_by_incorrect, aes(x = classification, y = percentage, fill = factor(num_incorrect, levels = c("2", "1", "0")))) +
   geom_bar(stat = "identity", position = "stack") +
-  labs(title = "BC2_classification for each genotype (rep2)",
-       x = "genotype",
-       y = "percent",
-       fill = "BC2 classification") +
+  labs(title = "correct vs incorrect nicr barcodes (rep2)", x = "genotype", y = "percent", fill = "# of incorrect bc_classifications") +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))+
-  scale_fill_manual(values = color_palette_BC2)
+  scale_fill_manual(values = color_palette_incorrect)
