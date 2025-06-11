@@ -1,0 +1,10 @@
+﻿gene,correct,correct_withoutprim,incorrect_misaasociation,incorrect_primerdimer,incorrect_SNP
+ercc1,2562,67,54,120,0
+ercc4,1481,50,1,89,0
+rad14,998,28,1,138,0
+xpa,1768,77,2,84,7
+rad10,2231,123,93,355,3
+rad1,1245,85,1,107,0
+rad1neg,455,178,0,368,0
+rad14neg,2797,56,0,101,7
+rad10neg,2687,83,0,308,4
